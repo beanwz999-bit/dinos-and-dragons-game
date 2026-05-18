@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dinosaurs vs Dragons</title>
+    <link rel="stylesheet" href="style.css?v=3">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas" width="1600" height="800"></canvas>
+        
+        <!-- Controls Button -->
+        <button id="controls-btn">Controls</button>
+        
+        <!-- Controls Popup -->
+        <div id="controls-popup" class="hidden">
+            <button id="close-popup">X</button>
+            <h2>Game Controls</h2>
+            <div class="controls-lists">
+                <div class="player-controls">
+                    <h3>Player 1 (Dino)</h3>
+                    <ul>
+                        <li>Move: <strong>W, A, S, D</strong></li>
+                        <li>Attack: <strong>C</strong></li>
+                        <li>Super: <strong>V</strong></li>
+                    </ul>
+                </div>
+                <div class="player-controls">
+                    <h3>Player 2 (Dragon)</h3>
+                    <ul>
+                        <li>Move: <strong>Arrow Keys</strong></li>
+                        <li>Attack: <strong>L</strong></li>
+                        <li>Super: <strong>; (Semicolon)</strong></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="ui">
+            <div>
+                <div id="p1-health"></div>
+                <div id="p1-kills"></div>
+            </div>
+            <div>
+                <div id="p2-health"></div>
+                <div id="p2-kills"></div>
+            </div>
+        </div>
+    </div>
+    <!-- Added cache buster to force reload of game.js -->
+    <script src="game.js?v=2"></script>
+</body>
+</html>
