@@ -11,6 +11,7 @@ const game = {
     boss: null,
     miniBoss: null,
     miniBoss2: null,
+    miniBoss3: null,
     heart: null,
     diamond: null,
     lightning: null,
@@ -21,15 +22,16 @@ const game = {
     keys: {},
     wave: 1,
     score: 0,
-    state: 'menu',
+    state: 'menu', // 'menu', 'playing', 'gameover_delay', 'gameover_fading', 'gameover_screen', 'victory', 'boss_warning_hold'
     warningTicks: 0,
     miniBossTriggered: false,
     miniBoss2Triggered: false,
+    miniBoss3Triggered: false,
     bossWarningTicks: 0,
     bossTriggered: false,
     menuIndex: 0,
     menuOptions: ['1 Player', '2 Players'],
-    difficultyIndex: 0, // 0: Normal, 1: Hard
+    difficultyIndex: 0,
     difficulties: ['Normal', 'Hard'],
     victoryTicks: 0,
     backgroundFadeTicks: 0,
@@ -58,15 +60,18 @@ const assets = {
     boss: null,
     miniBoss: null,
     miniBoss2: null,
+    miniBoss3: null,
     background: new Image(),
     jungleBackground: new Image(),
     moonBackground: new Image(),
     bossBackground: new Image(),
     titleBackground: new Image(),
     underwaterBackground: new Image(),
+    outerSpaceBackground: new Image(),
     rock: null,
     fireball: null,
     bee: null,
+    alien_ufo: null,
     heart: null,
     diamond: null,
     lightning: null
@@ -84,7 +89,9 @@ const imageSources = {
     fireball: 'fireball.png',
     miniBoss: 'robot_shark.png',
     miniBoss2: 'ladybug.png',
+    miniBoss3: 'robot_turtle.png',
     bee: 'bee.png',
+    alien_ufo: 'alien_ufo.png',
     heart: 'heart.png',
     diamond: 'diamond_v2.png',
     lightning: 'lightning.png'
@@ -95,23 +102,20 @@ assets.moonBackground.src = 'moon_background.png';
 assets.bossBackground.src = 'moon_background_volcanoes.png';
 assets.titleBackground.src = 'title_background.png';
 assets.underwaterBackground.src = 'underwater.png';
+assets.outerSpaceBackground.src = 'outer_space.png';
 
-assets.underwaterBackground.onload = () => {
-    assets.background = assets.underwaterBackground;
-    checkLoaded();
-};
-assets.underwaterBackground.onerror = () => {
-    console.error('Failed to load underwater.png');
-    checkLoaded();
-};
+assets.underwaterBackground.onload = () => { assets.background = assets.underwaterBackground; checkLoaded(); };
+assets.underwaterBackground.onerror = () => { console.error('Failed to load underwater.png'); checkLoaded(); };
+assets.outerSpaceBackground.onload = checkLoaded;
+assets.outerSpaceBackground.onerror = () => { console.error('Failed to load outer_space.png'); checkLoaded(); };
 
 let loadedCount = 0;
-const totalAssets = 20;
+const totalAssets = 23;
 
 function checkLoaded() {
     loadedCount++;
-    console.log(`Loaded asset ${loadedCount}/20`);
-    if (loadedCount === 20) {
+    console.log(`Loaded asset ${loadedCount}/23`);
+    if (loadedCount === 23) {
         console.log('All images loaded');
         game.running = true;
         loop();
@@ -120,31 +124,23 @@ function checkLoaded() {
 
 assets.jungleBackground.onload = () => { checkLoaded(); };
 assets.jungleBackground.onerror = () => { console.error('Failed to load background.png'); checkLoaded(); };
-
 assets.moonBackground.onload = checkLoaded;
 assets.moonBackground.onerror = () => { console.error('Failed to load moon_background.png'); checkLoaded(); };
-
 assets.bossBackground.onload = checkLoaded;
 assets.bossBackground.onerror = () => { console.error('Failed to load moon_background_volcanoes.png'); checkLoaded(); };
-
 assets.titleBackground.onload = checkLoaded;
 assets.titleBackground.onerror = () => { console.error('Failed to load title_background.png'); checkLoaded(); };
 
 function makeTransparent(img, threshold = 150) {
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = img.width;
-    tempCanvas.height = img.height;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.drawImage(img, 0, 0);
-
+    tempCanvas.width = img.width; tempCanvas.height = img.height;
+    const tempCtx = tempCanvas.getContext('2d'); tempCtx.drawImage(img, 0, 0);
     const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
     const data = imageData.data;
-
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i]; const g = data[i + 1]; const b = data[i + 2];
         if (r > threshold && g > threshold && b > threshold) { data[i + 3] = 0; }
     }
-
     tempCtx.putImageData(imageData, 0, 0);
     return tempCanvas;
 }
@@ -154,10 +150,10 @@ for (const [key, src] of Object.entries(imageSources)) {
     img.src = src;
     img.onload = () => {
         let transparentCanvas;
-        if (key === 'diamond' || key === 'lightning' || key === 'miniBoss2') { transparentCanvas = makeTransparent(img, 250); }
+        if (key === 'diamond' || key === 'lightning' || key === 'miniBoss2' || key === 'miniBoss3' || key === 'alien_ufo') { transparentCanvas = makeTransparent(img, 250); }
         else { transparentCanvas = makeTransparent(img, 150); }
         
-        if (key === 'boss' || key === 'miniBoss' || key === 'miniBoss2' || key === 'bee' || key === 'heart' || key === 'diamond' || key === 'lightning') { assets[key] = transparentCanvas; }
+        if (key === 'boss' || key === 'miniBoss' || key === 'miniBoss2' || key === 'miniBoss3' || key === 'bee' || key === 'alien_ufo' || key === 'heart' || key === 'diamond' || key === 'lightning') { assets[key] = transparentCanvas; }
         else if (key === 'rock' || key === 'fireball') { assets[key] = transparentCanvas; }
         else { const [char, action] = key.split('_'); assets[char][action] = transparentCanvas; }
         checkLoaded();
@@ -174,20 +170,20 @@ class Character {
     draw() {
         const asset = assets[this.assetKey];
         let img = null;
-        if (this.assetKey === 'boss' || this.assetKey === 'miniBoss' || this.assetKey === 'miniBoss2' || this.assetKey === 'bee' || this.assetKey === 'heart' || this.assetKey === 'diamond' || this.assetKey === 'lightning') { img = asset; }
+        if (this.assetKey === 'boss' || this.assetKey === 'miniBoss' || this.assetKey === 'miniBoss2' || this.assetKey === 'miniBoss3' || this.assetKey === 'bee' || this.assetKey === 'alien_ufo' || this.assetKey === 'heart' || this.assetKey === 'diamond' || this.assetKey === 'lightning') { img = asset; }
         else { img = asset ? asset[this.currentAction] : null; }
 
         if (img) {
             ctx.save(); ctx.globalAlpha = this.alpha; ctx.translate(this.x + this.width / 2, this.y + this.height / 2); ctx.scale(this.facing, 1);
             if (this.assetKey === 'dino') { ctx.filter = 'hue-rotate(150deg)'; }
-            if (this.assetKey === 'boss' || this.assetKey === 'miniBoss' || this.assetKey === 'miniBoss2' || this.assetKey === 'bee' || this.assetKey === 'heart' || this.assetKey === 'diamond' || this.assetKey === 'lightning') { ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height); }
+            if (this.assetKey === 'boss' || this.assetKey === 'miniBoss' || this.assetKey === 'miniBoss2' || this.assetKey === 'miniBoss3' || this.assetKey === 'bee' || this.assetKey === 'alien_ufo' || this.assetKey === 'heart' || this.assetKey === 'diamond' || this.assetKey === 'lightning') { ctx.drawImage(img, -this.width / 2, -this.height / 2, this.width, this.height); }
             else {
                 const frameWidth = img.width / 2; const frameHeight = img.height / 2; const col = this.frameIndex % 2; const row = Math.floor(this.frameIndex / 2); const sx = col * frameWidth; const sy = row * frameHeight;
                 ctx.drawImage(img, sx, sy, frameWidth, frameHeight, -this.width / 2, -this.height / 2, this.width, this.height);
             }
             ctx.restore();
 
-            if (this.health < this.maxHealth || this.assetKey === 'catfish' || this.assetKey === 'bee' || this.assetKey === 'dino' || this.assetKey === 'dragon') {
+            if (this.health < this.maxHealth || this.assetKey === 'catfish' || this.assetKey === 'bee' || this.assetKey === 'alien_ufo' || this.assetKey === 'dino' || this.assetKey === 'dragon') {
                 ctx.fillStyle = 'red'; ctx.fillRect(this.x, this.y - 10, this.width, 5);
                 ctx.fillStyle = 'green'; ctx.fillRect(this.x, this.y - 10, this.width * Math.max(0, this.health / this.maxHealth), 5);
             }
@@ -290,7 +286,10 @@ function spawnWave() {
     for (let i = 0; i < count; i++) {
         const x = Math.random() < 0.5 ? -100 : canvas.width + 100;
         const y = Math.random() * (canvas.height - 80);
-        let assetKey = 'catfish'; if (game.wave >= 4) { assetKey = 'bee'; }
+        let assetKey = 'catfish';
+        if (game.wave >= 4 && game.wave <= 6) { assetKey = 'bee'; }
+        else if (game.wave >= 7) { assetKey = 'alien_ufo'; }
+        
         const enemy = new Enemy(x, y, 80, 80, assetKey);
         enemy.maxHealth = 100 * multiplier;
         enemy.health = enemy.maxHealth;
@@ -319,6 +318,13 @@ function spawnMiniBoss2() {
     game.miniBoss2 = new Character(canvas.width - 250, 200, 260, 260, 'miniBoss2');
     game.miniBoss2.maxHealth = 650 * hpMultiplier; game.miniBoss2.health = game.miniBoss2.maxHealth; game.miniBoss2.speed = 0.9;
     console.log('Mini-boss 2 spawned!');
+}
+
+function spawnMiniBoss3() {
+    const hpMultiplier = game.difficultyIndex === 1 ? 1.5 : 1.0;
+    game.miniBoss3 = new Character(canvas.width - 250, 200, 260, 260, 'miniBoss3');
+    game.miniBoss3.maxHealth = 650 * hpMultiplier; game.miniBoss3.health = game.miniBoss3.maxHealth; game.miniBoss3.speed = 0.9;
+    console.log('Mini-boss 3 spawned!');
 }
 
 function spawnBoss() {
@@ -358,6 +364,10 @@ function triggerRingEffect(x, y, player) {
         game.miniBoss2.health -= 50;
         if (game.miniBoss2.health <= 0) { handleBossDeath('miniBoss2', player); }
     }
+    if (game.miniBoss3 && !game.miniBoss3.dying) {
+        game.miniBoss3.health -= 50;
+        if (game.miniBoss3.health <= 0) { handleBossDeath('miniBoss3', player); }
+    }
     if (game.boss && !game.boss.dying) {
         game.boss.health -= 50;
         if (game.boss.health <= 0) { handleBossDeath('boss', player); }
@@ -389,6 +399,12 @@ function triggerLightningEffect(player) {
         game.miniBoss2.health -= 50;
         if (game.miniBoss2.health <= 0) { handleBossDeath('miniBoss2', player); }
     }
+    if (game.miniBoss3 && !game.miniBoss3.dying) {
+        const targetX = game.miniBoss3.x + game.miniBoss3.width / 2; const targetY = game.miniBoss3.y + game.miniBoss3.height / 2;
+        game.lightningEffect.targets.push({ points: generatePoints(targetX, 0, targetX, targetY) });
+        game.miniBoss3.health -= 50;
+        if (game.miniBoss3.health <= 0) { handleBossDeath('miniBoss3', player); }
+    }
     if (game.boss && !game.boss.dying) {
         const targetX = game.boss.x + game.boss.width / 2; const targetY = game.boss.y + game.boss.height / 2;
         game.lightningEffect.targets.push({ points: generatePoints(targetX, 0, targetX, targetY) });
@@ -411,7 +427,7 @@ function handleBossDeath(bossKey, player) {
     const boss = game[bossKey];
     if (boss && !boss.dying) {
         boss.dying = true;
-        game.score += (bossKey === 'boss') ? 100 : (bossKey === 'miniBoss2' ? 75 : 50);
+        game.score += (bossKey === 'boss') ? 100 : (bossKey === 'miniBoss2' || bossKey === 'miniBoss3' ? 75 : 50);
         player.kills++;
     }
 }
@@ -433,14 +449,19 @@ function startGame(playerCount) {
 }
 
 function resetGame() {
-    game.state = 'menu'; game.wave = 1; game.score = 0; game.players = []; game.enemies = []; game.projectiles = []; game.particles = []; game.boss = null; game.miniBoss = null; game.miniBoss2 = null; game.heart = null; game.diamond = null; game.lightning = null; game.meteor = null; game.ringEffect = null; game.lightningEffect = null; game.meteorEffect = null; game.miniBossTriggered = false; game.miniBoss2Triggered = false; game.bossTriggered = false; game.warningTicks = 0; game.bossWarningTicks = 0; game.gameOverTicks = 0; assets.background = assets.underwaterBackground;
+    game.state = 'menu'; game.wave = 1; game.score = 0; game.players = []; game.enemies = []; game.projectiles = []; game.particles = []; game.boss = null; game.miniBoss = null; game.miniBoss2 = null; game.miniBoss3 = null; game.heart = null; game.diamond = null; game.lightning = null; game.meteor = null; game.ringEffect = null; game.lightningEffect = null; game.meteorEffect = null; game.miniBossTriggered = false; game.miniBoss2Triggered = false; game.miniBoss3Triggered = false; game.bossTriggered = false; game.warningTicks = 0; game.bossWarningTicks = 0; game.gameOverTicks = 0; assets.background = assets.underwaterBackground;
 }
 
 function drawBg(bg, alpha) {
     if (!bg.complete) return;
-    if (bg === assets.moonBackground || bg === assets.bossBackground) { ctx.fillStyle = '#111'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.globalAlpha = 0.7 * alpha; ctx.drawImage(bg, 0, 0, canvas.width, canvas.height); ctx.restore(); }
+    if (bg === assets.moonBackground || bg === assets.bossBackground) {
+        ctx.fillStyle = '#111'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.globalAlpha = 0.7 * alpha; ctx.drawImage(bg, 0, 0, canvas.width, canvas.height); ctx.restore();
+    }
     else if (bg === assets.underwaterBackground) {
         ctx.fillStyle = '#e0f7fa'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.globalAlpha = 0.4 * alpha; ctx.drawImage(bg, 0, 0, canvas.width, canvas.height); ctx.restore();
+    }
+    else if (bg === assets.outerSpaceBackground) {
+        ctx.fillStyle = '#150a21'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.globalAlpha = 0.4 * alpha; ctx.drawImage(bg, 0, 0, canvas.width, canvas.height); ctx.restore();
     }
     else { ctx.save(); ctx.globalAlpha = alpha; ctx.drawImage(bg, 0, 0, canvas.width, canvas.height); ctx.restore(); }
 }
@@ -453,10 +474,35 @@ function loop() {
     if (game.state === 'menu') { controlsBtn.style.display = 'block'; }
     else { controlsBtn.style.display = 'none'; document.getElementById('controls-popup').classList.add('hidden'); }
 
-    if (game.backgroundFadeTicks > 0) {
-        game.backgroundFadeTicks--; drawBg(assets.background, 1.0); const alpha = (60 - game.backgroundFadeTicks) / 60; drawBg(game.targetBackground, alpha);
-        if (game.backgroundFadeTicks === 0) { assets.background = game.targetBackground; game.targetBackground = null; }
-    } else { drawBg(assets.background, 1.0); }
+    if (game.state === 'boss_warning_hold') {
+        // Black screen with banner
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        game.bossWarningTicks--;
+        if (Math.floor(game.bossWarningTicks / 10) % 2 === 0) {
+            ctx.save();
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, canvas.height / 2 - 60, canvas.width, 120);
+            ctx.fillStyle = 'red'; ctx.font = 'bold 70px Impact, Arial Black'; ctx.textAlign = 'center'; ctx.fillText('WARNING: BOSS IS COMING!', canvas.width / 2, canvas.height / 2 + 25);
+            ctx.restore();
+        }
+        
+        if (game.bossWarningTicks <= 0) {
+            game.state = 'playing';
+            game.wave++; // becomes 10
+            assets.background = assets.bossBackground;
+            spawnBoss();
+            game.fadeDirection = -1; // Fade in to the new background!
+            game.fadeAlpha = 1; // Start from full black
+            game.nextState = null;
+        }
+    } else {
+        if (game.backgroundFadeTicks > 0) {
+            game.backgroundFadeTicks--; drawBg(assets.background, 1.0); const alpha = (60 - game.backgroundFadeTicks) / 60; drawBg(game.targetBackground, alpha);
+            if (game.backgroundFadeTicks === 0) { assets.background = game.targetBackground; game.targetBackground = null; }
+        } else { drawBg(assets.background, 1.0); }
+    }
 
     if (game.state === 'menu') {
         document.getElementById('p1-health').innerText = ''; document.getElementById('p1-kills').innerText = ''; document.getElementById('p2-health').innerText = ''; document.getElementById('p2-kills').innerText = '';
@@ -469,7 +515,6 @@ function loop() {
         ctx.fillStyle = 'white'; ctx.font = 'bold 40px Impact, Arial Black';
         game.menuOptions.forEach((option, index) => { ctx.fillText(option, canvas.width / 2, canvas.height / 2 + index * 60); });
         
-        // Draw Difficulty Toggle
         const diffY = canvas.height / 2 + game.menuOptions.length * 60 + 120;
         ctx.fillText(`Difficulty: < ${game.difficulties[game.difficultyIndex]} >`, canvas.width / 2, diffY);
         
@@ -485,11 +530,11 @@ function loop() {
         game.gameOverTicks--;
         if (game.gameOverTicks <= 0) { game.state = 'gameover_fading'; game.fadeDirection = 1; game.fadeAlpha = 0; game.nextState = 'gameover_screen'; }
         game.players.forEach(p => { if (p.health > 0) { p.draw(); } else { ctx.save(); ctx.globalAlpha = 0.3; p.draw(); ctx.restore(); } });
-        game.enemies.forEach(e => e.draw()); if (game.miniBoss) game.miniBoss.draw(); if (game.miniBoss2) game.miniBoss2.draw(); if (game.boss) game.boss.draw(); game.projectiles.forEach(p => p.draw());
+        game.enemies.forEach(e => e.draw()); if (game.miniBoss) game.miniBoss.draw(); if (game.miniBoss2) game.miniBoss2.draw(); if (game.miniBoss3) game.miniBoss3.draw(); if (game.boss) game.boss.draw(); game.projectiles.forEach(p => p.draw());
 
     } else if (game.state === 'gameover_fading') {
         game.players.forEach(p => { if (p.health > 0) { p.draw(); } else { ctx.save(); ctx.globalAlpha = 0.3; p.draw(); ctx.restore(); } });
-        game.enemies.forEach(e => e.draw()); if (game.miniBoss) game.miniBoss.draw(); if (game.miniBoss2) game.miniBoss2.draw(); if (game.boss) game.boss.draw(); game.projectiles.forEach(p => p.draw());
+        game.enemies.forEach(e => e.draw()); if (game.miniBoss) game.miniBoss.draw(); if (game.miniBoss2) game.miniBoss2.draw(); if (game.miniBoss3) game.miniBoss3.draw(); if (game.boss) game.boss.draw(); game.projectiles.forEach(p => p.draw());
 
     } else if (game.state === 'gameover_screen') {
         ctx.fillStyle = 'black'; ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -508,18 +553,23 @@ function loop() {
     } else if (game.state === 'playing') {
         if (game.players.length > 0 && game.players.every(p => p.health <= 0)) { game.state = 'gameover_delay'; game.gameOverTicks = 120; }
 
-        // Wave progression...
-        if (game.enemies.length === 0 && !game.boss && !game.miniBoss && !game.miniBoss2 && game.warningTicks === 0 && game.bossWarningTicks === 0) {
-            if (game.wave === 3 && !game.miniBossTriggered) {
-                game.miniBossTriggered = true;
-                game.warningTicks = 180;
-            } else if (game.wave === 6 && !game.miniBoss2Triggered) {
-                game.miniBoss2Triggered = true;
-                game.warningTicks = 180;
-            } else if (game.wave < 6 && (game.miniBossTriggered ? game.wave >= 4 : true)) {
-                game.wave++;
+        // Delay wave spawning
+        if (game.waveSpawnDelay > 0) {
+            game.waveSpawnDelay--;
+            if (game.waveSpawnDelay === 0) {
                 spawnWave();
-                if (game.wave === 3 || game.wave === 6) { spawnHeart(); }
+            }
+        }
+
+        // Wave progression...
+        if (game.enemies.length === 0 && game.waveSpawnDelay === 0 && !game.boss && !game.miniBoss && !game.miniBoss2 && !game.miniBoss3 && game.warningTicks === 0 && game.bossWarningTicks === 0) {
+            if (game.wave === 3 && !game.miniBossTriggered) { game.miniBossTriggered = true; game.warningTicks = 180; }
+            else if (game.wave === 6 && !game.miniBoss2Triggered) { game.miniBoss2Triggered = true; game.warningTicks = 180; }
+            else if (game.wave === 9 && !game.miniBoss3Triggered) { game.miniBoss3Triggered = true; game.warningTicks = 180; }
+            else if (game.wave < 9) {
+                game.wave++;
+                game.waveSpawnDelay = 60; // Wait 1s before spawning next wave
+                if (game.wave === 3 || game.wave === 6 || game.wave === 9) { spawnHeart(); }
             }
         }
 
@@ -528,16 +578,7 @@ function loop() {
             if (game.warningTicks === 0) {
                 if (game.wave === 3) { spawnMiniBoss(); }
                 else if (game.wave === 6) { spawnMiniBoss2(); }
-            }
-        }
-
-        if (game.bossWarningTicks > 0) {
-            game.bossWarningTicks--;
-            if (game.bossWarningTicks === 0) {
-                game.wave++;
-                game.targetBackground = assets.bossBackground;
-                game.backgroundFadeTicks = 60;
-                spawnBoss();
+                else if (game.wave === 9) { spawnMiniBoss3(); }
             }
         }
 
@@ -611,6 +652,10 @@ function loop() {
                             game.miniBoss2.health -= 50;
                             if (game.miniBoss2.health <= 0) { handleBossDeath('miniBoss2', game.meteorEffect.player); }
                         }
+                        if (game.miniBoss3 && !game.miniBoss3.dying) {
+                            game.miniBoss3.health -= 50;
+                            if (game.miniBoss3.health <= 0) { handleBossDeath('miniBoss3', game.meteorEffect.player); }
+                        }
                         if (game.boss && !game.boss.dying) {
                             game.boss.health -= 50;
                             if (game.boss.health <= 0) { handleBossDeath('boss', game.meteorEffect.player); }
@@ -649,6 +694,10 @@ function loop() {
                     game.miniBoss2.health -= 20;
                     if (game.miniBoss2.health <= 0) { handleBossDeath('miniBoss2', player); }
                 }
+                if (game.miniBoss3 && !game.miniBoss3.dying && checkCollision(player.attackBox, game.miniBoss3)) {
+                    game.miniBoss3.health -= 20;
+                    if (game.miniBoss3.health <= 0) { handleBossDeath('miniBoss3', player); }
+                }
                 if (game.boss && !game.boss.dying && checkCollision(player.attackBox, game.boss)) {
                     game.boss.health -= 20;
                     if (game.boss.health <= 0) { handleBossDeath('boss', player); }
@@ -674,6 +723,10 @@ function loop() {
                 game.miniBoss2.health -= 50; projectile.active = false;
                 if (game.miniBoss2.health <= 0) { handleBossDeath('miniBoss2', projectile.owner); }
             }
+            if (game.miniBoss3 && !game.miniBoss3.dying && checkCollision(projectile, game.miniBoss3)) {
+                game.miniBoss3.health -= 50; projectile.active = false;
+                if (game.miniBoss3.health <= 0) { handleBossDeath('miniBoss3', projectile.owner); }
+            }
             if (game.boss && !game.boss.dying && checkCollision(projectile, game.boss)) {
                 game.boss.health -= 50; projectile.active = false;
                 if (game.boss.health <= 0) { handleBossDeath('boss', projectile.owner); }
@@ -688,10 +741,7 @@ function loop() {
         if (game.miniBoss) {
             if (game.miniBoss.dying) {
                 game.miniBoss.alpha -= 0.005;
-                if (game.miniBoss.alpha <= 0) {
-                    game.miniBoss = null;
-                    game.fadeDirection = 1; game.fadeAlpha = 0; game.nextState = 'wave_4_transition';
-                }
+                if (game.miniBoss.alpha <= 0) { game.miniBoss = null; game.fadeDirection = 1; game.fadeAlpha = 0; game.nextState = 'wave_4_transition'; }
             } else {
                 let closestPlayer = null; let minDist = Infinity;
                 game.players.forEach(player => { if (player.health > 0) { const dist = Math.hypot(player.x - game.miniBoss.x, game.miniBoss.y); if (dist < minDist) { minDist = dist; closestPlayer = player; } } });
@@ -710,10 +760,7 @@ function loop() {
         if (game.miniBoss2) {
             if (game.miniBoss2.dying) {
                 game.miniBoss2.alpha -= 0.005;
-                if (game.miniBoss2.alpha <= 0) {
-                    game.miniBoss2 = null;
-                    game.fadeDirection = 1; game.fadeAlpha = 0; game.nextState = 'boss_transition';
-                }
+                if (game.miniBoss2.alpha <= 0) { game.miniBoss2 = null; game.fadeDirection = 1; game.fadeAlpha = 0; game.nextState = 'wave_7_transition'; }
             } else {
                 let closestPlayer = null; let minDist = Infinity;
                 game.players.forEach(player => { if (player.health > 0) { const dist = Math.hypot(player.x - game.miniBoss2.x, game.miniBoss2.y); if (dist < minDist) { minDist = dist; closestPlayer = player; } } });
@@ -729,14 +776,29 @@ function loop() {
             if (game.miniBoss2) game.miniBoss2.draw();
         }
 
+        if (game.miniBoss3) {
+            if (game.miniBoss3.dying) {
+                game.miniBoss3.alpha -= 0.005;
+                if (game.miniBoss3.alpha <= 0) { game.miniBoss3 = null; game.fadeDirection = 1; game.fadeAlpha = 0; game.nextState = 'black_screen_boss_warning'; } // Go to black screen warning!
+            } else {
+                let closestPlayer = null; let minDist = Infinity;
+                game.players.forEach(player => { if (player.health > 0) { const dist = Math.hypot(player.x - game.miniBoss3.x, game.miniBoss3.y); if (dist < minDist) { minDist = dist; closestPlayer = player; } } });
+                if (closestPlayer) {
+                    if (game.miniBoss3.x < closestPlayer.x) { game.miniBoss3.x += game.miniBoss3.speed; game.miniBoss3.facing = 1; }
+                    if (game.miniBoss3.x > closestPlayer.x) { game.miniBoss3.x -= game.miniBoss3.speed; game.miniBoss3.facing = -1; }
+                    if (game.miniBoss3.y < closestPlayer.y) game.miniBoss3.y += game.miniBoss3.speed;
+                    if (game.miniBoss3.y > closestPlayer.y) game.miniBoss3.y -= game.miniBoss3.speed;
+                }
+                game.miniBoss3.update();
+                game.players.forEach(player => { if (player.health > 0 && checkCollision(game.miniBoss3, player)) player.health -= 0.15; });
+            }
+            if (game.miniBoss3) game.miniBoss3.draw();
+        }
+
         if (game.boss) {
             if (game.boss.dying) {
                 game.boss.alpha -= 0.005;
-                if (game.boss.alpha <= 0) {
-                    game.boss = null;
-                    game.state = 'victory';
-                    game.victoryTicks = 300;
-                }
+                if (game.boss.alpha <= 0) { game.boss = null; game.state = 'victory'; game.victoryTicks = 300; }
             } else {
                 let closestPlayer = null; let minDist = Infinity;
                 game.players.forEach(player => { if (player.health > 0) { const dist = Math.hypot(player.x - game.boss.x, game.boss.y); if (dist < minDist) { minDist = dist; closestPlayer = player; } } });
@@ -752,46 +814,16 @@ function loop() {
             if (game.boss) game.boss.draw();
         }
 
-        if (game.players.length >= 1) {
-            document.getElementById('p1-health').innerText = '';
-            document.getElementById('p1-kills').innerText = `Dino Kills: ${game.players[0].kills}`;
-        }
-        if (game.players.length >= 2) {
-            document.getElementById('p2-health').innerText = '';
-            document.getElementById('p2-kills').innerText = `Dragon Kills: ${game.players[1].kills}`;
-        }
+        if (game.players.length >= 1) { document.getElementById('p1-health').innerText = ''; document.getElementById('p1-kills').innerText = `Dino Kills: ${game.players[0].kills}`; }
+        if (game.players.length >= 2) { document.getElementById('p2-health').innerText = ''; document.getElementById('p2-kills').innerText = `Dragon Kills: ${game.players[1].kills}`; }
         
         ctx.fillStyle = 'white'; ctx.font = '26px Arial'; ctx.fillText(`Wave: ${game.wave}`, 10, 30); ctx.fillText(`Score: ${game.score}`, 10, 70);
-        if (game.miniBoss) ctx.fillText(`Mini-Boss Health: ${game.miniBoss.health}`, canvas.width - 250, 60);
-        if (game.miniBoss2) ctx.fillText(`Mini-Boss 2 Health: ${game.miniBoss2.health}`, canvas.width - 250, 90);
-        if (game.boss) ctx.fillText(`Boss Health: ${game.boss.health}`, canvas.width - 200, 30);
+        // Boss health meters removed
 
         // SOLID BANNER, FLASHING TEXT
         if (game.warningTicks > 0) {
-            ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(0, canvas.height / 2 - 50, canvas.width, 100);
-            
-            if (Math.floor(game.warningTicks / 10) % 2 === 0) {
-                ctx.fillStyle = 'yellow';
-                ctx.font = 'bold 60px Impact, Arial Black';
-                ctx.textAlign = 'center';
-                ctx.fillText('MINI-BOSS IS COMING!', canvas.width / 2, canvas.height / 2 + 20);
-            }
-            ctx.restore();
-        }
-
-        if (game.bossWarningTicks > 0) {
-            ctx.save();
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(0, canvas.height / 2 - 60, canvas.width, 120);
-            
-            if (Math.floor(game.bossWarningTicks / 10) % 2 === 0) {
-                ctx.fillStyle = 'red';
-                ctx.font = 'bold 70px Impact, Arial Black';
-                ctx.textAlign = 'center';
-                ctx.fillText('WARNING: BOSS IS COMING!', canvas.width / 2, canvas.height / 2 + 25);
-            }
+            ctx.save(); ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; ctx.fillRect(0, canvas.height / 2 - 50, canvas.width, 100);
+            if (Math.floor(game.warningTicks / 10) % 2 === 0) { ctx.fillStyle = 'yellow'; ctx.font = 'bold 60px Impact, Arial Black'; ctx.textAlign = 'center'; ctx.fillText('MINI-BOSS IS COMING!', canvas.width / 2, canvas.height / 2 + 20); }
             ctx.restore();
         }
 
@@ -809,17 +841,22 @@ function loop() {
             if (game.nextState === 'playing') { game.fadeDirection = -1; game.state = 'playing'; startGame(game.playerCount); }
             else if (game.nextState === 'gameover_screen') { game.fadeDirection = 0; game.state = 'gameover_screen'; }
             else if (game.nextState === 'wave_4_transition') {
-                game.fadeDirection = -1; game.state = 'playing'; game.wave++; assets.background = assets.jungleBackground; spawnWave();
+                game.fadeDirection = -1; game.state = 'playing'; game.wave++; assets.background = assets.jungleBackground;
             }
-            else if (game.nextState === 'boss_transition') {
-                game.fadeDirection = -1;
-                game.state = 'playing';
-                game.wave++;
-                assets.background = assets.bossBackground;
-                game.bossWarningTicks = 180;
+            else if (game.nextState === 'wave_7_transition') {
+                game.fadeDirection = -1; game.state = 'playing'; game.wave++; assets.background = assets.outerSpaceBackground;
+            }
+            else if (game.nextState === 'black_screen_boss_warning') {
+                game.fadeDirection = 0; // Stay black
+                game.bossWarningTicks = 180; // Start warning
+                game.state = 'boss_warning_hold';
             }
         } else if (game.fadeDirection === -1 && game.fadeAlpha <= 0) {
-            game.fadeAlpha = 0; game.fadeDirection = 0; game.nextState = null;
+            game.fadeAlpha = 0; game.fadeDirection = 0;
+            if (game.nextState === 'wave_4_transition' || game.nextState === 'wave_7_transition' || game.nextState === 'playing') {
+                game.waveSpawnDelay = 60; // Wait 1s before spawning
+            }
+            game.nextState = null;
         }
         ctx.save(); ctx.globalAlpha = game.fadeAlpha; ctx.fillStyle = 'black'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.restore();
     }
