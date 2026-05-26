@@ -1151,9 +1151,9 @@ window.addEventListener('keydown', (e) => {
     game.keys[e.code] = true;
     
     if (game.state === 'training' && game.trainingComplete) {
-        if (e.code === 'ArrowUp') { game.trainingMenuIndex = (game.trainingMenuIndex - 1 + game.trainingMenuOptions.length) % game.trainingMenuOptions.length; }
-        else if (e.code === 'ArrowDown') { game.trainingMenuIndex = (game.trainingMenuIndex + 1) % game.trainingMenuOptions.length; }
-        else if (e.code === 'Enter') {
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') { game.trainingMenuIndex = (game.trainingMenuIndex - 1 + game.trainingMenuOptions.length) % game.trainingMenuOptions.length; }
+        else if (e.code === 'ArrowDown' || e.code === 'KeyS') { game.trainingMenuIndex = (game.trainingMenuIndex + 1) % game.trainingMenuOptions.length; }
+        else if (e.code === 'Enter' || e.code === 'KeyC') {
             if (game.trainingMenuIndex === 0) { startTraining(); game.trainingComplete = false; }
             else if (game.trainingMenuIndex === 1) { resetGame(); }
         }
@@ -1166,9 +1166,9 @@ window.addEventListener('keydown', (e) => {
     }
 
     if (game.paused) { // Handle pause menu
-        if (e.code === 'ArrowUp') { game.pauseMenuIndex = (game.pauseMenuIndex - 1 + game.pauseMenuOptions.length) % game.pauseMenuOptions.length; }
-        else if (e.code === 'ArrowDown') { game.pauseMenuIndex = (game.pauseMenuIndex + 1) % game.pauseMenuOptions.length; }
-        else if (e.code === 'Enter') {
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') { game.pauseMenuIndex = (game.pauseMenuIndex - 1 + game.pauseMenuOptions.length) % game.pauseMenuOptions.length; }
+        else if (e.code === 'ArrowDown' || e.code === 'KeyS') { game.pauseMenuIndex = (game.pauseMenuIndex + 1) % game.pauseMenuOptions.length; }
+        else if (e.code === 'Enter' || e.code === 'KeyC') {
             if (game.pauseMenuIndex === 0) { game.paused = false; } // Resume
             else if (game.pauseMenuIndex === 1) {
                 if (game.state === 'training') { startTraining(); game.paused = false; }
@@ -1180,9 +1180,9 @@ window.addEventListener('keydown', (e) => {
     }
     
     if (game.state === 'menu') {
-        if (e.code === 'ArrowUp') { game.menuIndex = (game.menuIndex - 1 + game.menuOptions.length) % game.menuOptions.length; }
-        else if (e.code === 'ArrowDown') { game.menuIndex = (game.menuIndex + 1) % game.menuOptions.length; }
-        else if (e.code === 'Enter') { game.menuFlashing = true; game.menuFlashTicks = 60; game.fadeSpeed = 0.05; }
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') { game.menuIndex = (game.menuIndex - 1 + game.menuOptions.length) % game.menuOptions.length; }
+        else if (e.code === 'ArrowDown' || e.code === 'KeyS') { game.menuIndex = (game.menuIndex + 1) % game.menuOptions.length; }
+        else if (e.code === 'Enter' || e.code === 'KeyC') { game.menuFlashing = true; game.menuFlashTicks = 60; game.fadeSpeed = 0.05; }
     } else if (game.state === 'char_select') {
         // Dynamic joining
         if (!game.playerJoined[1] && e.code === 'KeyL') { game.playerJoined[1] = true; game.playerCount = Math.max(game.playerCount, 2); return; }
@@ -1249,7 +1249,7 @@ window.addEventListener('keydown', (e) => {
             game.fadeDirection = 1; game.fadeAlpha = 0; game.nextState = 'menu_back';
         }
         
-        if (e.code === 'Enter') {
+        if (e.code === 'Enter' || e.code === 'KeyC') {
             let allLocked = true;
             for (let i = 0; i < 3; i++) {
                 if (game.playerJoined[i] && !game.lockedDifficulties[i]) { allLocked = false; break; }
@@ -1278,12 +1278,18 @@ if (isMobile()) {
         
         const press = (e) => {
             e.preventDefault();
-            game.keys[key] = true;
+            if (!game.keys[key]) {
+                game.keys[key] = true;
+                window.dispatchEvent(new KeyboardEvent('keydown', { code: key }));
+            }
         };
         
         const release = (e) => {
             e.preventDefault();
-            game.keys[key] = false;
+            if (game.keys[key]) {
+                game.keys[key] = false;
+                window.dispatchEvent(new KeyboardEvent('keyup', { code: key }));
+            }
         };
         
         btn.addEventListener('touchstart', press, { passive: false });
@@ -1291,9 +1297,9 @@ if (isMobile()) {
         btn.addEventListener('touchcancel', release, { passive: false });
         
         // Also handle mouse events for testing on desktop with dev tools
-        btn.addEventListener('mousedown', (e) => { e.preventDefault(); game.keys[key] = true; });
-        btn.addEventListener('mouseup', (e) => { e.preventDefault(); game.keys[key] = false; });
-        btn.addEventListener('mouseleave', (e) => { e.preventDefault(); game.keys[key] = false; });
+        btn.addEventListener('mousedown', press);
+        btn.addEventListener('mouseup', release);
+        btn.addEventListener('mouseleave', release);
     };
     
     handleTouch('btn-up', 'KeyW');
