@@ -630,14 +630,36 @@ function loop() {
                     const asset = assets[charKey]; const img = asset ? asset.walk : null;
                     
                     ctx.save();
-                    if (game.lockedCharacters[i]) {
-                        const colorIndex = game.selectedColors[i];
-                        if (colorIndex === 1) ctx.filter = 'hue-rotate(90deg)';
-                        else if (colorIndex === 2) ctx.filter = 'hue-rotate(180deg)';
-                    }
+                    const colorIndex = game.selectedColors[i];
                     
-                    if (img) { const frameWidth = img.width / 2; const frameHeight = img.height / 2; ctx.drawImage(img, 0, 0, frameWidth, frameHeight, x - 50, y - 50, 100, 100); }
-                    else { ctx.fillStyle = 'red'; ctx.fillRect(x - 50, y - 50, 100, 100); }
+                    if (img) {
+                        const frameWidth = img.width / 2;
+                        const frameHeight = img.height / 2;
+                        
+                        if (game.lockedCharacters[i] && colorIndex > 0) {
+                            const tempCanvas = document.createElement('canvas');
+                            tempCanvas.width = 100;
+                            tempCanvas.height = 100;
+                            const tempCtx = tempCanvas.getContext('2d');
+                            
+                            // Draw the character frame to temp canvas
+                            tempCtx.drawImage(img, 0, 0, frameWidth, frameHeight, 0, 0, 100, 100);
+                            
+                            // Apply tint
+                            tempCtx.globalCompositeOperation = 'source-atop';
+                            if (colorIndex === 1) tempCtx.fillStyle = 'rgba(0, 0, 255, 0.4)'; // Blue tint
+                            else if (colorIndex === 2) tempCtx.fillStyle = 'rgba(255, 0, 0, 0.4)'; // Red tint
+                            tempCtx.fillRect(0, 0, 100, 100);
+                            
+                            // Draw temp canvas to main canvas
+                            ctx.drawImage(tempCanvas, x - 50, y - 50);
+                        } else {
+                            ctx.drawImage(img, 0, 0, frameWidth, frameHeight, x - 50, y - 50, 100, 100);
+                        }
+                    } else {
+                        ctx.fillStyle = 'red';
+                        ctx.fillRect(x - 50, y - 50, 100, 100);
+                    }
                     ctx.restore();
                     
                     ctx.fillStyle = '#ffd700'; ctx.textAlign = 'center'; ctx.fillText(`Player ${i+1}`, x, y + 80); ctx.fillStyle = 'white'; ctx.fillText(charKey.toUpperCase(), x, y + 120);
