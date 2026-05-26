@@ -9,8 +9,6 @@
 <body>
     <div id="game-container">
         <canvas id="gameCanvas" width="1600" height="800"></canvas>
-        
-        <!-- Controls Button -->
         <button id="controls-btn">Controls</button>
         
         <!-- Controls Popup -->
@@ -19,7 +17,7 @@
             <h2>Game Controls</h2>
             <div class="controls-lists">
                 <div class="player-controls">
-                    <h3>Player 1 (Dino)</h3>
+                    <h3>Player 1</h3>
                     <ul>
                         <li>Move: <strong>W, A, S, D</strong></li>
                         <li>Attack: <strong>C</strong></li>
@@ -27,16 +25,26 @@
                     </ul>
                 </div>
                 <div class="player-controls">
-                    <h3>Player 2 (Dragon)</h3>
+                    <h3>Player 2</h3>
                     <ul>
                         <li>Move: <strong>Arrow Keys</strong></li>
                         <li>Attack: <strong>L</strong></li>
                         <li>Super: <strong>; (Semicolon)</strong></li>
                     </ul>
                 </div>
+                <!-- Added Player 3 -->
+                <div class="player-controls">
+                    <h3>Player 3</h3>
+                    <ul>
+                        <li>Move: <strong>T, F, G, H</strong></li>
+                        <li>Attack: <strong>N</strong></li>
+                        <li>Super: <strong>M</strong></li>
+                    </ul>
+                </div>
             </div>
         </div>
 
+        <button id="back-btn" class="hidden">← Back</button>
         <div id="ui">
             <div>
                 <div id="p1-health"></div>
@@ -45,6 +53,26 @@
             <div>
                 <div id="p2-health"></div>
                 <div id="p2-kills"></div>
+            </div>
+            <div>
+                <div id="p3-health"></div>
+                <div id="p3-kills"></div>
+            </div>
+        </div>
+
+        <!-- Mobile Controls -->
+        <div id="mobile-controls" class="hidden">
+            <div class="dpad">
+                <button id="btn-up">↑</button>
+                <div class="dpad-middle">
+                    <button id="btn-left">←</button>
+                    <button id="btn-right">→</button>
+                </div>
+                <button id="btn-down">↓</button>
+            </div>
+            <div class="action-buttons">
+                <button id="btn-attack">Attack</button>
+                <button id="btn-super">Super</button>
             </div>
         </div>
     </div>
